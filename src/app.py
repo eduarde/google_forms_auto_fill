@@ -1,74 +1,42 @@
-import os
 import json
 import logging
+import argparse
 import requests
-from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from typing import Dict, Any, Optional
+from auth import authenticate
+
 
 # Configure logging
 logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-# Define OAuth Scopes
-SCOPES = ["https://www.googleapis.com/auth/forms", "https://www.googleapis.com/auth/drive"]
 
-# Your Google Form ID (Replace with actual ID)
-FORM_ID = "1VsR5ArlvJurWO4x52IGT1OKPnqzzKie60DZ7RcCOZYg"
-
-# File paths
-CLIENT_SECRET_FILE = "credentials.json"  # OAuth JSON file from Google Cloud
-TOKEN_FILE = "token.json"  # Stores access token after authentication
-
-def authenticate():
+def fetch_form_data(credentials: Credentials, form_id: str) -> Dict[str, Any]:
     """
-    Authenticate user using Google OAuth and return valid credentials.
+    Fetches questions from a Google Form using the Google Forms API.
+
+    Args:
+        credentials (Credentials): Authenticated Google OAuth credentials.
+        form_id (str): The Google Form ID.
+
+    Returns:
+        Dict[str, Any]: The form data as a dictionary, or an error message.
     """
-    creds = None
-
-    # Load existing token if available
-    if os.path.exists(TOKEN_FILE):
-        logging.info("Loading existing credentials from token file.")
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-
-    # If no valid credentials, authenticate the user
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            logging.info("Refreshing expired access token.")
-            creds.refresh(Request())
-        else:
-            logging.info("No valid credentials found. Initiating authentication flow.")
-            try:
-                flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
-                creds = flow.run_local_server(port=0)  # Opens browser for login
-            except Exception as e:
-                logging.error(f"Authentication failed: {e}")
-                return None
-
-        # Save credentials for future use
-        with open(TOKEN_FILE, "w") as token_file:
-            token_file.write(creds.to_json())
-            logging.info("Credentials saved successfully.")
-
-    return creds
-
-def fetch_form_questions(credentials):
-    """
-    Fetches questions from a Google Form using Google Forms API.
-    """
-    url = f"https://forms.googleapis.com/v1/forms/{FORM_ID}"
+    url = f"https://forms.googleapis.com/v1/forms/{form_id}"
     headers = {"Authorization": f"Bearer {credentials.token}"}
 
     try:
-        logging.info("Fetching form questions...")
+        logging.info(f"Fetching form questions for Form ID: {form_id}...")
         response = requests.get(url, headers=headers)
 
         if response.status_code != 200:
-            logging.error(f"Failed to fetch form questions. Status Code: {response.status_code}")
+            logging.error(
+                f"Failed to fetch form questions. Status Code: {response.status_code}"
+            )
             return {"error": response.json()}
-        
+
         logging.info("Form questions retrieved successfully.")
         return response.json()
 
@@ -76,15 +44,27 @@ def fetch_form_questions(credentials):
         logging.error(f"Request failed: {e}")
         return {"error": str(e)}
 
+
 if __name__ == "__main__":
-    # Authenticate user and get credentials
-    creds = authenticate()
-    
-    if creds:
+    """
+    Main entry point of the script. Parses command-line arguments,
+    authenticates the user, and fetches Google Form questions.
+    """
+    parser = argparse.ArgumentParser(description="Fetch Google Form Questions via API")
+    parser.add_argument(
+        "--form-id", required=True, help="Google Form ID to fetch questions from"
+    )
+    args = parser.parse_args()
+
+    form_id: str = args.form_id
+
+    credentials: Optional[Credentials] = authenticate()
+
+    if credentials:
         # Fetch form questions
-        form_data = fetch_form_questions(creds)
-        
-        # Print form questions
+        form_data = fetch_form_data(credentials, form_id)
+
+        # Print form questions in a readable JSON format
         print(json.dumps(form_data, indent=4))
     else:
         logging.error("Authentication failed. Exiting script.")

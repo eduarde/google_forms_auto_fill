@@ -86,7 +86,7 @@ This guide walks you through configuring **Google Cloud** for using **Google For
 1. **Ensure your virtual environment is activated**.
 2. **Run the script:**
    ```sh
-   python src/app.py
+   python src/app.py --form-id xxxxxxxxx
    ```
 3. **Authorize the App in the Browser**:
    - A browser window will open.
