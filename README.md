@@ -81,12 +81,14 @@ This guide walks you through configuring **Google Cloud** for using **Google For
 
 ---
 
-## **🚀  Run the Python Script**
+## **🚀  Run the Python Scripts**
+
+### Read Form: reads the form and save it to file in data directory for inspection purposes
 
 1. **Ensure your virtual environment is activated**.
 2. **Run the script:**
    ```sh
-   python src/app.py --form-id xxxxxxxxx
+   python src/read_form.py --form-id xxxxxxxxx
    ```
 3. **Authorize the App in the Browser**:
    - A browser window will open.
