@@ -1,9 +1,6 @@
 import json
 import logging
 import argparse
-from typing import Optional
-
-from google.oauth2.credentials import Credentials
 
 from app import fetch_form_data
 from auth import authenticate
@@ -12,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 if __name__ == "__main__":
+
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(message)s", level=logging.DEBUG
     )
@@ -24,7 +22,7 @@ if __name__ == "__main__":
 
     form_id: str = args.form_id
 
-    credentials: Optional[Credentials] = authenticate()
+    credentials = authenticate()
 
     if credentials:
         form_data = fetch_form_data(credentials, form_id)

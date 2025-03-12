@@ -20,6 +20,7 @@ pip install -r requirements.txt
 ```
 
 --- 
+## SKIP Google Cloud config if you already have a credentials.json file in your project!
 
 ## **🚀 Set Up Google Cloud for Google Forms API Authentication (Python)**
 This guide walks you through configuring **Google Cloud** for using **Google Forms API** with a **Python script**.
