@@ -142,10 +142,9 @@ MATRIX (1 answer per each question): entry.973603086=Slightly&entry.2145368981=Q
     1. form_data_<FORM_ID>.json (needed for visualising the form for debug purposes)
     2. entry_data_<FORM_ID>.json
 
-    IMPORTANT!
-    You need to identify and fill accordingly the `entry.XXXX` for each title. Use the pre-fill url generated at step 2 for identification. 
-
-    If the form will be updated, I will advise you to delete the `entry_data_<FORM_ID>.json` so you can have generate a fresh one.
+    **IMPORTANT**
+    You need to determine the correct entry.XXXX value for each question title by using the pre-fill URL generated in Step 2.
+    If you ever change the form (e.g., adding, removing, or renaming questions), I recommend deleting the file entry_data_<FORM_ID>.json so a fresh mapping can be generated.
 
 6. **Run the script:**
    ```sh
