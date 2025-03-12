@@ -1,97 +1,114 @@
 import random
-from typing import Any, Dict
+from typing import Dict, Any, List
 
 
 class AnswerStrategy:
-    """
-    Abstract base class for all answer generation strategies.
-    """
+    """Abstract base class for answer generation strategies."""
 
-    def generate_answer(self, question: Dict[str, Any]) -> Any:
-        """
-        Generates a random answer for the given question.
-
-        Args:
-            question (Dict[str, Any]): The question data.
-
-        Returns:
-            Any: The generated answer.
-        """
+    def generate_answer(self, question: Dict[str, Any]) -> Dict[str, Any]:
+        """Generates a structured response dictionary."""
         raise NotImplementedError
 
 
 class TextAnswerStrategy(AnswerStrategy):
-    """
-    Generates a random free-text answer.
-    """
+    """Handles free-text question answers."""
 
-    def generate_answer(self, question: Dict[str, Any]) -> str:
-        return f"Random response {random.randint(1, 100)}"
+    def generate_answer(self, question: Dict[str, Any]) -> Dict[str, Any]:
+        question_id = question["questionItem"]["question"]["questionId"]
+        question_text = question["title"]
+        answers = f"Random response {random.randint(1, 100)}"
+
+        return {
+            "entryId": "<TO ADD>",
+            "questionId": question_id,
+            "question_title": question_text,
+            "answers": [answers],
+        }
 
 
 class ChoiceAnswerStrategy(AnswerStrategy):
-    """
-    Generates a random answer for choice-based questions (radio, checkbox, dropdown).
-    """
+    """Handles multiple-choice (checkbox, radio, dropdown) question answers."""
 
-    def generate_answer(self, question: Dict[str, Any]) -> Any:
+    def generate_answer(self, question: Dict[str, Any]) -> Dict[str, Any]:
+        question_id = question["questionItem"]["question"]["questionId"]
+        question_text = question["title"]
         choices = question["questionItem"]["question"]["choiceQuestion"]["options"]
         choice_values = [choice["value"] for choice in choices]
 
-        # Determine type: Single choice or Multiple choice (Checkbox)
+        # Determine if single-choice (RADIO, DROPDOWN) or multiple-choice (CHECKBOX)
         question_type = question["questionItem"]["question"]["choiceQuestion"].get(
             "type", ""
         )
 
         if question_type == "CHECKBOX":  # Multiple selections allowed
-            num_choices = random.randint(1, len(choice_values))  # Choose 1 to N answers
-            return random.sample(choice_values, num_choices)
+            num_choices = random.randint(1, len(choice_values))  # Select 1 to N answers
+            answers = random.sample(choice_values, num_choices)
+        else:
+            answers = [random.choice(choice_values)]
 
-        return random.choice(choice_values)  # Single choice (RADIO, DROPDOWN)
+        return {
+            "entryId": "<TO ADD>",
+            "questionId": question_id,
+            "question_title": question_text,
+            "answers": answers,
+        }
 
 
 class ScaleAnswerStrategy(AnswerStrategy):
-    """
-    Generates a random answer within the defined scale range.
-    """
+    """Handles scale-based (linear scale) question answers."""
 
-    def generate_answer(self, question: Dict[str, Any]) -> str:
+    def generate_answer(self, question: Dict[str, Any]) -> Dict[str, Any]:
+        question_id = question["questionItem"]["question"]["questionId"]
+        question_text = question["title"]
         scale = question["questionItem"]["question"]["scaleQuestion"]
         low, high = scale["low"], scale["high"]
-        return str(random.randint(low, high))
+
+        return {
+            "entryId": "<TO ADD>",
+            "questionId": question_id,
+            "question_title": question_text,
+            "answers": [str(random.randint(low, high))],
+        }
 
 
 class MatrixAnswerStrategy(AnswerStrategy):
-    """
-    Generates random answers for matrix (grid) questions, selecting one answer per row.
-    """
+    """Handles matrix/grid questions where each row has a single selection."""
 
-    def generate_answer(self, question: Dict[str, Any]) -> Dict[str, str]:
-        row_answers = {}
-        for row in question["questionGroupItem"]["questions"]:
-            # row_label = row["question"]["questionId"]
-            row_label = row["questionId"]
-            strategy = AnswerStrategyFactory.get_strategy(row)
-            row_answers[row_label] = strategy.generate_answer(row)
-        return row_answers
+    def generate_answer(self, question: Dict[str, Any]) -> List[Dict[str, Any]]:
+        responses = []
+
+        grid_data = question.get("questionGroupItem", {})
+        questions = grid_data.get("questions", [])
+        columns = grid_data.get("grid", {}).get("columns", {}).get("options", [])
+
+        if not questions or not columns:
+            raise ValueError("Invalid matrix question format: Missing rows or options.")
+
+        # Extract column choices
+        choice_values = [option["value"] for option in columns]
+
+        # Generate a random answer for each row in the matrix
+        for row in questions:
+            row_question_id = row["questionId"]
+            chosen_answer = random.choice(choice_values)
+
+            responses.append(
+                {
+                    "entryId": "<TO ADD>",
+                    "questionId": row_question_id,
+                    "question_title": row["rowQuestion"]["title"],
+                    "answers": [chosen_answer],
+                }
+            )
+
+        return responses
 
 
 class AnswerStrategyFactory:
-    """
-    Factory for selecting the correct answer generation strategy based on question type.
-    """
+    """Factory for selecting the correct answer generation strategy based on question type."""
 
     @staticmethod
     def get_strategy(question: Dict[str, Any]) -> AnswerStrategy:
-        """
-        Returns the appropriate strategy based on the question type.
-
-        Args:
-            question (Dict[str, Any]): The question data.
-
-        Returns:
-            AnswerStrategy: The corresponding strategy class instance.
-        """
         question_data = question.get("questionItem", {}).get("question", {})
 
         if "textQuestion" in question_data:

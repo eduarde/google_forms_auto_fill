@@ -5,10 +5,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-# Configure logging
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
-)
+logger = logging.getLogger(__name__)
 
 # Define OAuth Scopes for Google Forms and Drive API access
 SCOPES = [
@@ -33,38 +30,38 @@ def authenticate() -> Optional[Credentials]:
 
     # Load existing token if available
     if os.path.exists(TOKEN_FILE):
-        logging.info("Loading existing credentials from token file.")
+        logger.info("Loading existing credentials from token file.")
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
 
     # If credentials are not valid, authenticate the user
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            logging.info("Refreshing expired access token.")
+            logger.info("Refreshing expired access token.")
             try:
                 creds.refresh(Request())
-                logging.info("Token refreshed successfully.")
+                logger.info("Token refreshed successfully.")
             except Exception as e:
-                logging.error(f"Token refresh failed: {e}")
+                logger.error(f"Token refresh failed: {e}")
                 return None
         else:
-            logging.info("No valid credentials found. Initiating authentication flow.")
+            logger.info("No valid credentials found. Initiating authentication flow.")
             try:
                 flow = InstalledAppFlow.from_client_secrets_file(
                     CLIENT_SECRET_FILE, SCOPES
                 )
                 creds = flow.run_local_server(port=0)  # Opens browser for login
-                logging.info("Authentication successful.")
+                logger.info("Authentication successful.")
             except Exception as e:
-                logging.error(f"Authentication failed: {e}")
+                logger.error(f"Authentication failed: {e}")
                 return None
 
         # Save credentials for future use
         try:
             with open(TOKEN_FILE, "w") as token_file:
                 token_file.write(creds.to_json())
-                logging.info("Credentials saved successfully.")
+                logger.info("Credentials saved successfully.")
         except Exception as e:
-            logging.error(f"Failed to save credentials: {e}")
+            logger.error(f"Failed to save credentials: {e}")
             return None
 
     return creds
