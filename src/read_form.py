@@ -8,13 +8,14 @@ from google.oauth2.credentials import Credentials
 from app import fetch_form_data
 from auth import authenticate
 
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.DEBUG
-)
+logger = logging.getLogger(__name__)
 
-FILENAME = "data/form_data.json"
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(message)s", level=logging.DEBUG
+    )
+
     parser = argparse.ArgumentParser(description="Fetch Google Form Questions via API")
     parser.add_argument(
         "--form-id", required=True, help="Google Form ID to fetch questions from"
@@ -27,9 +28,10 @@ if __name__ == "__main__":
 
     if credentials:
         form_data = fetch_form_data(credentials, form_id)
-        with open(FILENAME, "w") as file:
+        filename = f"data/form_data_{form_id}.json"
+        with open(filename, "w") as file:
             json.dump(form_data, file, indent=4)
-            logging.info(f"Form data saved to {FILENAME}")
+            logger.info(f"Form data {form_id} saved to {filename}")
 
     else:
-        logging.error("Authentication failed. Exiting script.")
+        logger.error("Authentication failed. Exiting script.")
