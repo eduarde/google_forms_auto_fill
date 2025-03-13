@@ -12,6 +12,7 @@ from mind import AnswerStrategyFactory
 
 logger = logging.getLogger(__name__)
 
+
 FORMS_API_URL = "https://forms.googleapis.com/v1/forms"
 
 
@@ -197,7 +198,7 @@ def submit_form(credentials: Credentials, form_id: str) -> Dict[str, Any]:
     # Build your query-string payload (e.g., 'usp=pp_url&entry.XXXX=answer...')
     payload = generate_submission_payload(form_id, questions)
 
-    # logging.info(f"Generated payload: {payload}")
+    # logging.debug(f"Generated payload: {payload}")
 
     # Construct the final URL:
     # e.g. 'https://docs.google.com/forms/d/e/.../formResponse?usp=pp_url&entry.XXXX=ANSWER...'

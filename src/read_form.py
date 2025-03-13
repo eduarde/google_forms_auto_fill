@@ -20,8 +20,7 @@ def main():
     args = parser.parse_args()
 
     form_id: str = args.form_id
-
-    # Your existing authentication
+   
     credentials = authenticate()
     if not credentials:
         logger.error("Authentication failed. Exiting script.")

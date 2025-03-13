@@ -1,10 +1,16 @@
 import os
 import random
-
 from typing import Dict, Any, List
 
 from openai import OpenAI
+from dotenv import load_dotenv
+
 from config import AI_PROMPT
+
+
+# Loads environment variables from a .env file into your shell’s environment.
+# Make sure you have a .env file at the project’s root (or specify the path).
+load_dotenv()
 
 
 class AnswerStrategy:
