@@ -167,6 +167,10 @@ MATRIX (1 answer per each question): entry.973603086=Slightly&entry.2145368981=Q
    python src/submit_form.py --form-id xxxxxxxxx
    ```
 
+   ```sh
+   python src/submit_form.py --form-id xxxxxxxxx --repeat 10
+   ```
+
 This will automatically fill the forms based on entry_data_<FORM_ID>.json with random responses.
 
 ---
