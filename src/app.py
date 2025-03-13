@@ -86,7 +86,7 @@ def _map_entry_with_question(
     return data
 
 
-def generate_random_answer(question: Dict[str, Any]) -> Any:
+def generate_answer(question: Dict[str, Any]) -> Any:
     """Uses the Strategy Pattern to generate random answers based on the question type."""
     try:
         strategy = AnswerStrategyFactory.get_strategy(question)
@@ -112,12 +112,12 @@ def generate_submission_payload(form_id: str, questions: List[Dict[str, Any]]) -
     for question in questions:
         if "questionGroupItem" in question:
             # This is a matrix/grid question – generate a list of answers for each row
-            # e.g., generate_random_answer(question) returns multiple row-answers
-            row_answers = generate_random_answer(question)
+            # e.g., generate_answer(question) returns multiple row-answers
+            row_answers = generate_answer(question)
             all_answers.extend(row_answers)
         elif "questionItem" in question:
             # This is a standard question
-            answer_obj = generate_random_answer(question)
+            answer_obj = generate_answer(question)
             if answer_obj:
                 all_answers.append(answer_obj)
 
@@ -180,8 +180,6 @@ def submit_form(credentials: Credentials, form_id: str) -> Dict[str, Any]:
         Dict[str, Any]: The API response from the Google Forms submission.
     """
 
-    # headers = {"Authorization": f"Bearer {credentials.token}"}
-
     logging.info("Fetching form questions...")
     form_data = fetch_form_data(credentials, form_id)
 
@@ -199,7 +197,7 @@ def submit_form(credentials: Credentials, form_id: str) -> Dict[str, Any]:
     # Build your query-string payload (e.g., 'usp=pp_url&entry.XXXX=answer...')
     payload = generate_submission_payload(form_id, questions)
 
-    logging.info(f"Generated payload: {payload}")
+    # logging.info(f"Generated payload: {payload}")
 
     # Construct the final URL:
     # e.g. 'https://docs.google.com/forms/d/e/.../formResponse?usp=pp_url&entry.XXXX=ANSWER...'

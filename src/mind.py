@@ -1,5 +1,10 @@
+import os
 import random
+
 from typing import Dict, Any, List
+
+from openai import OpenAI
+from config import AI_PROMPT
 
 
 class AnswerStrategy:
@@ -13,16 +18,42 @@ class AnswerStrategy:
 class TextAnswerStrategy(AnswerStrategy):
     """Handles free-text question answers."""
 
+    OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+    if not OPENAI_KEY:
+        raise ValueError("OPENAI_API_KEY not found in .env file.")
+
     def generate_answer(self, question: Dict[str, Any]) -> Dict[str, Any]:
         question_id = question["questionItem"]["question"]["questionId"]
-        question_text = question["title"]
-        answers = f"Random response {random.randint(1, 100)}"
+        question_text = question["title"].strip()
+
+        # 1) Skip optional questions
+        if "(optional)" in question_text.lower():
+            return {}
+        if "email" in question_text.lower():
+            return {}
+
+        # 2) If question mentions 'Country', pick from a small set
+        if "country" in question_text.lower():
+            possible_countries = ("Romania", "Germany")
+            generated_answer = random.choice(possible_countries)
+        else:
+            # 3) Otherwise, use OpenAI to generate an answer
+
+            client = OpenAI(api_key=self.OPENAI_KEY)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "user", "content": (f"{AI_PROMPT}\n\n{question_text}")}
+                ],
+            )
+
+            generated_answer = response.choices[0].message.content
 
         return {
             "entryId": "<TO ADD>",
             "questionId": question_id,
             "question_title": question_text,
-            "answers": [answers],
+            "answers": [generated_answer],
         }
 
 
@@ -33,7 +64,11 @@ class ChoiceAnswerStrategy(AnswerStrategy):
         question_id = question["questionItem"]["question"]["questionId"]
         question_text = question["title"]
         choices = question["questionItem"]["question"]["choiceQuestion"]["options"]
-        choice_values = [choice["value"] for choice in choices]
+        choice_values = [
+            choice["value"]
+            for choice in choices
+            if choice["value"].strip().lower() != "other"
+        ]
 
         # Determine if single-choice (RADIO, DROPDOWN) or multiple-choice (CHECKBOX)
         question_type = question["questionItem"]["question"]["choiceQuestion"].get(

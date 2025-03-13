@@ -20,7 +20,19 @@ pip install -r requirements.txt
 ```
 
 --- 
-## SKIP Google Cloud config if you already have a credentials.json file in your project!
+
+## Configure you OPENAI profile
+
+1. Navigate to the OpenAI platform and create an account: https://platform.openai.com
+2. Generate an api key https://platform.openai.com/settings/organization/api-keys  
+3. Copy the key in `.env` file (create one): `OPENAI_API_KEY = "sk-proj-xxxx"`
+4. Complete your profile and add billing information.
+
+---
+
+## Setup Google Cloud config 
+
+(Skip if you have the `credentials.json` file in your project)
 
 ## **🚀 Set Up Google Cloud for Google Forms API Authentication (Python)**
 This guide walks you through configuring **Google Cloud** for using **Google Forms API** with a **Python script**.
@@ -145,6 +157,10 @@ MATRIX (1 answer per each question): entry.973603086=Slightly&entry.2145368981=Q
     **IMPORTANT**
     You need to determine the correct entry.XXXX value for each question title by using the pre-fill URL generated in Step 2.
     If you ever change the form (e.g., adding, removing, or renaming questions), I recommend deleting the file entry_data_<FORM_ID>.json so a fresh mapping can be generated.
+
+5. **Adjust the AI PROMPT**
+
+    1. Navigate to `config.py` and adjust the AI_PROMPT accordingly. 
 
 6. **Run the script:**
    ```sh
