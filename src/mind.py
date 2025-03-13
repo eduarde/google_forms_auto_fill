@@ -40,7 +40,7 @@ class TextAnswerStrategy(AnswerStrategy):
 
         # 2) If question mentions 'Country', pick from a small set
         if "country" in question_text.lower():
-            possible_countries = ("Romania", "Germany")
+            possible_countries = ("Romania", "Germany", "Austria")
             generated_answer = random.choice(possible_countries)
         else:
             # 3) Otherwise, use OpenAI to generate an answer
@@ -70,11 +70,8 @@ class ChoiceAnswerStrategy(AnswerStrategy):
         question_id = question["questionItem"]["question"]["questionId"]
         question_text = question["title"]
         choices = question["questionItem"]["question"]["choiceQuestion"]["options"]
-        choice_values = [
-            choice["value"]
-            for choice in choices
-            if choice["value"].strip().lower() != "other"
-        ]
+
+        choice_values = [choice["value"] for choice in choices if "value" in choice]
 
         # Determine if single-choice (RADIO, DROPDOWN) or multiple-choice (CHECKBOX)
         question_type = question["questionItem"]["question"]["choiceQuestion"].get(

@@ -1,3 +1,4 @@
+import re
 import json
 import logging
 import requests
@@ -44,7 +45,7 @@ def gather_entry_data_init(data: dict) -> dict:
 
 def _map_entry_with_question(
     form_id: str, data: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+) -> tuple[List[Dict[str, Any]], int]:
     """
     data: list of dictionaries, each with "entryId", "questionId", "question_title", "answer".
     form_id: the form ID (e.g., "1VsR5Ar...").
@@ -52,7 +53,6 @@ def _map_entry_with_question(
     Returns: the same list, but with each "entryId" replaced by the actual "entry.xxx" value
              from entry_data.json, if found.
     """
-
     # Load entire mapping file
     entry_file_name = f"data/entry_data_{form_id}.json"
     with open(entry_file_name, "r") as f:
@@ -60,6 +60,10 @@ def _map_entry_with_question(
 
     # Get the specific mapping for this form_id
     form_mapping = all_forms_entry_data.get(form_id)
+
+    # Retrieve how many Section are in form
+    section_count = len([k for k in form_mapping if re.search(r"^Section\s+\d+:", k)])
+
     if not form_mapping:
         logger.error(f"No entry data found for form ID: {form_id}")
         return data  # or raise an exception if you prefer
@@ -84,7 +88,7 @@ def _map_entry_with_question(
         # Assign the entry.xxx to the item's "entryId"
         item["entryId"] = form_mapping[question_title]
 
-    return data
+    return data, section_count
 
 
 def generate_answer(question: Dict[str, Any]) -> Any:
@@ -124,10 +128,16 @@ def generate_submission_payload(form_id: str, questions: List[Dict[str, Any]]) -
 
     # 2) Map each question or row-answer from your data to the correct entry.xxx
     #    e.g., item["question_title"] => item["entryId"]
-    data_with_entry_id = _map_entry_with_question(form_id, all_answers)
+    data_with_entry_id, section_count = _map_entry_with_question(form_id, all_answers)
 
     # 3) Build the 'usp=pp_url&entry.XXXX=ANSWER' string
-    parts = ["usp=pp_url"]
+
+    if section_count > 0:
+        action = "&pageHistory=" + ",".join(str(i) for i in range(section_count + 1))
+    else:
+        action = "usp=pp_url"
+
+    parts = [action]
     for item in data_with_entry_id:
         entry_id = item["entryId"]  # e.g. "entry.343824263"
         for answer in item["answers"]:
