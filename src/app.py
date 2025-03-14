@@ -18,6 +18,18 @@ logger = logging.getLogger(__name__)
 FORMS_API_URL = "https://forms.googleapis.com/v1/forms"
 
 
+def _generate_gaussian_sentiment(mean=0.5, std_dev=0.2):
+    """
+    Generates a sentiment score using a normal (Gaussian) distribution.
+
+    :param mean: The center of the distribution (default: 0.5 for medium sentiment).
+    :param std_dev: The standard deviation (default: 0.2 for controlled spread).
+    :return: A float between 0.0 and 1.0, clamped within valid range.
+    """
+    sentiment_score = random.gauss(mean, std_dev)
+    return max(0.0, min(1.0, sentiment_score))  # Ensure it's within [0,1]
+
+
 def gather_entry_data_init(data: dict) -> dict:
     """
     Returns a dict { question_title: "entry.XXXX" } for every question
@@ -208,8 +220,8 @@ def submit_form(credentials: Credentials, form_id: str) -> Dict[str, Any]:
     # Extract the questions array from the JSON
     questions = form_data.get("items", [])
 
-    # Randomly assign a sentiment score (0.0 - 1.0)
-    sentiment_score = random.uniform(0, 1)
+    # Randomly assign a sentiment score (0.0 - 1.0) with more weight on medium range
+    sentiment_score = _generate_gaussian_sentiment()
 
     logger.info(f"Assigning a sentiment score of {sentiment_score}")
 

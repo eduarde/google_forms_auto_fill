@@ -46,7 +46,6 @@ class TextAnswerStrategy(AnswerStrategy):
         """
         text = text.replace(".", "")
         words = [word.strip() for word in text.split(",") if word.strip()]
-        
         if not words:
             return ""  # Return empty string if no words are present
 
@@ -112,7 +111,7 @@ class ChoiceAnswerStrategy(AnswerStrategy):
 
     def _get_choices_based_on_sentiment(self, choice_values, sentiment_score):
         """
-        Splits choices into three sentiment-based categories and returns the appropriate range.
+        Splits choices into three sentiment-based categories with overlapping ranges.
 
         :param choice_values: Sorted list of available choices.
         :param sentiment_score: Float (0.0 - 1.0) representing sentiment level.
@@ -122,19 +121,26 @@ class ChoiceAnswerStrategy(AnswerStrategy):
         if num_choices == 0:
             return []  # Edge case: No choices available
 
-        # Calculate split indices
-        low_cutoff = max(1, num_choices // 3)  # ignore first lower bound
-        medium_cutoff = (2 * num_choices) // 3
+        # Calculate cutoffs for overlapping ranges
+        low_cutoff = max(2, num_choices // 3)  # Ensures at least 2 values in low
+        medium_cutoff = (2 * num_choices) // 3  # Mid cutoff
+
+        # Overlapping segments for smoother sentiment transitions
+        low_range = choice_values[
+            :medium_cutoff
+        ]  # Covers first third + one from medium
+        medium_range = choice_values[
+            low_cutoff:medium_cutoff
+        ]  # Properly centered medium range
+        high_range = choice_values[medium_cutoff:]  # Covers last third
 
         # Assign ranges dynamically
         if sentiment_score < 0.33:
-            return choice_values[:low_cutoff]  # First third (low sentiment)
+            return low_range  # Low sentiment gets broader choices
         elif sentiment_score < 0.66:
-            return choice_values[
-                low_cutoff:medium_cutoff
-            ]  # Middle third (medium sentiment)
+            return medium_range  # Medium sentiment properly centered
         else:
-            return choice_values[medium_cutoff:]  # Last third (high sentiment)
+            return high_range  # High sentiment remains higher values
 
     def generate_answer(
         self, question: Dict[str, Any], sentiment_score: float
@@ -155,13 +161,25 @@ class ChoiceAnswerStrategy(AnswerStrategy):
         )
 
         if question_type == "CHECKBOX":  # Multiple selections allowed
-            min_choices = min(2, len(choice_values))  # Ensure it does not exceed available choices
-            max_choices = max(min_choices, int(len(choice_values) * 0.6))  # Ensure valid range
-            num_choices = random.randint(min_choices, max_choices)  # Guaranteed valid range
+            min_choices = min(
+                2, len(choice_values)
+            )  # Ensure it does not exceed available choices
+            max_choices = max(
+                min_choices, int(len(choice_values) * 0.6)
+            )  # Ensure valid range
+            num_choices = random.randint(
+                min_choices, max_choices
+            )  # Guaranteed valid range
             answers = random.sample(choice_values, num_choices)
         else:
-            if any(q.lower() in question_text.lower().split() for q in IGNORE_SENTIMENT_QUESTIONS):
-                possible_choices = self._get_choices_based_on_sentiment(choice_values, sentiment_score) or choice_values
+            if any(
+                q.lower() in question_text.lower().split()
+                for q in IGNORE_SENTIMENT_QUESTIONS
+            ):
+                possible_choices = (
+                    self._get_choices_based_on_sentiment(choice_values, sentiment_score)
+                    or choice_values
+                )
             else:
                 possible_choices = choice_values
 
@@ -182,7 +200,7 @@ class ScaleAnswerStrategy(AnswerStrategy):
         self, low: int, high: int, sentiment_score: float, question_text: str
     ) -> List[int]:
         """
-        Extracts scale values based on sentiment.
+        Extracts scale values based on sentiment with a smoother distribution.
 
         :param low: Lower bound of the scale.
         :param high: Upper bound of the scale.
@@ -200,19 +218,29 @@ class ScaleAnswerStrategy(AnswerStrategy):
         scale_range = list(range(low, high + 1))  # Inclusive range
         num_values = len(scale_range)
 
-        # Compute segment cutoffs
-        low_cutoff = max(1, num_values // 3)  # Ensure at least one value
+        # Compute segment cutoffs for overlapping ranges
+        low_cutoff = max(1, num_values // 3)
         medium_cutoff = (2 * num_values) // 3
 
-        # Assign scale range based on sentiment
+        # Define overlapping sentiment ranges
+        low_range = scale_range[:medium_cutoff]  # Covers 1st and 2nd thirds
+        medium_range = scale_range[
+            low_cutoff : medium_cutoff + 1
+        ]  # Covers 2nd and 3rd thirds
+        high_range = scale_range[medium_cutoff:]  # Covers last third
+
+        # Select appropriate range based on sentiment score
         if sentiment_score < 0.33:
-            return scale_range[:low_cutoff]  # Lower third (low sentiment)
+            possible_values = low_range
         elif sentiment_score < 0.66:
-            return scale_range[
-                low_cutoff:medium_cutoff
-            ]  # Middle third (medium sentiment)
+            possible_values = medium_range
         else:
-            return scale_range[medium_cutoff:]
+            possible_values = high_range
+
+        # Shuffle for better distribution before selecting
+        random.shuffle(possible_values)
+
+        return possible_values
 
     def generate_answer(
         self, question: Dict[str, Any], sentiment_score: float
