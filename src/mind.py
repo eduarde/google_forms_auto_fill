@@ -1,11 +1,12 @@
 import os
+import string
 import random
 from typing import Dict, Any, List
 
 from openai import OpenAI
 from dotenv import load_dotenv
 
-from config import AI_PROMPT
+from config import AI_PROMPT, SKIP_WORDS, SKIP_PHRASES, IGNORE_SENTIMENT_QUESTIONS
 
 
 # Loads environment variables from a .env file into your shell’s environment.
@@ -30,16 +31,55 @@ class TextAnswerStrategy(AnswerStrategy):
     if not OPENAI_KEY:
         raise ValueError("OPENAI_API_KEY not found in .env file.")
 
+    def _process_generated_answer(self, text: str) -> str:
+        """
+
+        Make it more natural:
+
+        - Selects a random number of words (1-5).
+        - Randomizes the order of words.
+        - Randomly capitalizes the first letter of some words.
+        - Removes trailing punctuation if present.
+
+        :param text: The generated answer string.
+        :return: A formatted string following these rules.
+        """
+        text = text.replace(".", "")
+        words = [word.strip() for word in text.split(",") if word.strip()]
+        
+        if not words:
+            return ""  # Return empty string if no words are present
+
+        # Randomly shuffle words
+        random.shuffle(words)
+
+        # Select a random number of words (min 1, max 5)
+        num_words = random.randint(1, min(4, len(words)))
+        selected_words = words[:num_words]
+
+        # Randomly capitalize the first letter of some words
+        randomized_words = [
+            word.capitalize() if random.choice([True, False]) else word.lower()
+            for word in selected_words
+        ]
+
+        # Join words back into a single string
+        result = ", ".join(randomized_words)
+
+        # Remove last character if it's a punctuation mark
+        if result and result[-1] in string.punctuation:
+            result = result[:-1]
+
+        return result
+
     def generate_answer(
         self, question: Dict[str, Any], sentiment_score: float
     ) -> Dict[str, Any]:
         question_id = question["questionItem"]["question"]["questionId"]
         question_text = question["title"].strip()
 
-        # 1) Skip optional questions
-        if "(optional)" in question_text.lower():
-            return {}
-        if "email" in question_text.lower():
+        # 1) Skip some questions
+        if any(skip_phrase in question_text.lower() for skip_phrase in SKIP_PHRASES):
             return {}
 
         # 2) If question mentions 'Country', pick from a small set
@@ -55,7 +95,9 @@ class TextAnswerStrategy(AnswerStrategy):
                     {"role": "user", "content": (f"{AI_PROMPT}\n\n{question_text}")}
                 ],
             )
-            generated_answer = response.choices[0].message.content
+            generated_answer = self._process_generated_answer(
+                response.choices[0].message.content
+            )
 
         return {
             "entryId": "<TO ADD>",
@@ -81,7 +123,7 @@ class ChoiceAnswerStrategy(AnswerStrategy):
             return []  # Edge case: No choices available
 
         # Calculate split indices
-        low_cutoff = max(1, num_choices // 3)
+        low_cutoff = max(1, num_choices // 3)  # ignore first lower bound
         medium_cutoff = (2 * num_choices) // 3
 
         # Assign ranges dynamically
@@ -101,7 +143,11 @@ class ChoiceAnswerStrategy(AnswerStrategy):
         question_text = question["title"]
         choices = question["questionItem"]["question"]["choiceQuestion"]["options"]
 
-        choice_values = [choice["value"] for choice in choices if "value" in choice]
+        choice_values = [
+            choice["value"]
+            for choice in choices
+            if "value" in choice and choice["value"].strip().lower() not in SKIP_WORDS
+        ]
 
         # Determine if single-choice (RADIO, DROPDOWN) or multiple-choice (CHECKBOX)
         question_type = question["questionItem"]["question"]["choiceQuestion"].get(
@@ -109,14 +155,14 @@ class ChoiceAnswerStrategy(AnswerStrategy):
         )
 
         if question_type == "CHECKBOX":  # Multiple selections allowed
-            num_choices = random.randint(1, len(choice_values))  # Select 1 to N answers
+            min_choices = min(2, len(choice_values))  # Ensure it does not exceed available choices
+            max_choices = max(min_choices, int(len(choice_values) * 0.6))  # Ensure valid range
+            num_choices = random.randint(min_choices, max_choices)  # Guaranteed valid range
             answers = random.sample(choice_values, num_choices)
         else:
-            possible_choices = self._get_choices_based_on_sentiment(
-                choice_values, sentiment_score
-            )
-            # Ensure fallback to all choices if the filtered list is empty
-            if not possible_choices:
+            if any(q.lower() in question_text.lower().split() for q in IGNORE_SENTIMENT_QUESTIONS):
+                possible_choices = self._get_choices_based_on_sentiment(choice_values, sentiment_score) or choice_values
+            else:
                 possible_choices = choice_values
 
             answers = [random.choice(possible_choices)]
