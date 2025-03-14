@@ -1,6 +1,7 @@
 import re
 import json
 import logging
+import random
 import requests
 import urllib.parse
 
@@ -91,17 +92,19 @@ def _map_entry_with_question(
     return data, section_count
 
 
-def generate_answer(question: Dict[str, Any]) -> Any:
-    """Uses the Strategy Pattern to generate random answers based on the question type."""
+def generate_answer(question: Dict[str, Any], sentiment_score: float) -> Any:
+    """Uses the Strategy Pattern to generate answers based on the question type."""
     try:
         strategy = AnswerStrategyFactory.get_strategy(question)
-        return strategy.generate_answer(question)
+        return strategy.generate_answer(question, sentiment_score)
     except ValueError as e:
         logging.error(f"Error generating answer: {e}")
         return None
 
 
-def generate_submission_payload(form_id: str, questions: List[Dict[str, Any]]) -> str:
+def generate_submission_payload(
+    form_id: str, questions: List[Dict[str, Any]], sentiment_score: float
+) -> str:
     """
     Generates the final query-string payload (the part after '?') for submitting or pre-filling
     form responses. The string begins with "usp=pp_url" and includes repeated entries like
@@ -118,11 +121,11 @@ def generate_submission_payload(form_id: str, questions: List[Dict[str, Any]]) -
         if "questionGroupItem" in question:
             # This is a matrix/grid question – generate a list of answers for each row
             # e.g., generate_answer(question) returns multiple row-answers
-            row_answers = generate_answer(question)
+            row_answers = generate_answer(question, sentiment_score)
             all_answers.extend(row_answers)
         elif "questionItem" in question:
             # This is a standard question
-            answer_obj = generate_answer(question)
+            answer_obj = generate_answer(question, sentiment_score)
             if answer_obj:
                 all_answers.append(answer_obj)
 
@@ -181,7 +184,7 @@ def fetch_form_data(credentials: Credentials, form_id: str) -> Dict[str, Any]:
 
 def submit_form(credentials: Credentials, form_id: str) -> Dict[str, Any]:
     """
-    Fetches Google Form questions, generates random answers, and submits the form.
+    Fetches Google Form questions, generates answers, and submits the form.
 
     Args:
         credentials: Authenticated Google OAuth credentials.
@@ -205,8 +208,13 @@ def submit_form(credentials: Credentials, form_id: str) -> Dict[str, Any]:
     # Extract the questions array from the JSON
     questions = form_data.get("items", [])
 
+    # Randomly assign a sentiment score (0.0 - 1.0)
+    sentiment_score = random.uniform(0, 1)
+
+    logger.info(f"Assigning a sentiment score of {sentiment_score}")
+
     # Build your query-string payload (e.g., 'usp=pp_url&entry.XXXX=answer...')
-    payload = generate_submission_payload(form_id, questions)
+    payload = generate_submission_payload(form_id, questions, sentiment_score)
 
     # logging.debug(f"Generated payload: {payload}")
 

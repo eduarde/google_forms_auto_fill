@@ -154,11 +154,12 @@ MATRIX (1 answer per each question): entry.973603086=Slightly&entry.2145368981=Q
     1. form_data_<FORM_ID>.json (needed for visualising the form for debug purposes)
     2. entry_data_<FORM_ID>.json
 
+6.  **Fill the entries data**
     **IMPORTANT**
     You need to determine the correct entry.XXXX value for each question title by using the pre-fill URL generated in Step 2.
     If you ever change the form (e.g., adding, removing, or renaming questions), I recommend deleting the file entry_data_<FORM_ID>.json so a fresh mapping can be generated.
 
-5. **Adjust the AI PROMPT**
+5. **Adjust the AI PROMPT** 
 
     1. Navigate to `config.py` and adjust the AI_PROMPT accordingly. 
 

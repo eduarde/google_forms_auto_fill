@@ -16,7 +16,9 @@ load_dotenv()
 class AnswerStrategy:
     """Abstract base class for answer generation strategies."""
 
-    def generate_answer(self, question: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_answer(
+        self, question: Dict[str, Any], sentiment_score: float
+    ) -> Dict[str, Any]:
         """Generates a structured response dictionary."""
         raise NotImplementedError
 
@@ -28,7 +30,9 @@ class TextAnswerStrategy(AnswerStrategy):
     if not OPENAI_KEY:
         raise ValueError("OPENAI_API_KEY not found in .env file.")
 
-    def generate_answer(self, question: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_answer(
+        self, question: Dict[str, Any], sentiment_score: float
+    ) -> Dict[str, Any]:
         question_id = question["questionItem"]["question"]["questionId"]
         question_text = question["title"].strip()
 
@@ -44,7 +48,6 @@ class TextAnswerStrategy(AnswerStrategy):
             generated_answer = random.choice(possible_countries)
         else:
             # 3) Otherwise, use OpenAI to generate an answer
-
             client = OpenAI(api_key=self.OPENAI_KEY)
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -52,7 +55,6 @@ class TextAnswerStrategy(AnswerStrategy):
                     {"role": "user", "content": (f"{AI_PROMPT}\n\n{question_text}")}
                 ],
             )
-
             generated_answer = response.choices[0].message.content
 
         return {
@@ -66,7 +68,35 @@ class TextAnswerStrategy(AnswerStrategy):
 class ChoiceAnswerStrategy(AnswerStrategy):
     """Handles multiple-choice (checkbox, radio, dropdown) question answers."""
 
-    def generate_answer(self, question: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_choices_based_on_sentiment(self, choice_values, sentiment_score):
+        """
+        Splits choices into three sentiment-based categories and returns the appropriate range.
+
+        :param choice_values: Sorted list of available choices.
+        :param sentiment_score: Float (0.0 - 1.0) representing sentiment level.
+        :return: List of choices corresponding to the sentiment category.
+        """
+        num_choices = len(choice_values)
+        if num_choices == 0:
+            return []  # Edge case: No choices available
+
+        # Calculate split indices
+        low_cutoff = max(1, num_choices // 3)
+        medium_cutoff = (2 * num_choices) // 3
+
+        # Assign ranges dynamically
+        if sentiment_score < 0.33:
+            return choice_values[:low_cutoff]  # First third (low sentiment)
+        elif sentiment_score < 0.66:
+            return choice_values[
+                low_cutoff:medium_cutoff
+            ]  # Middle third (medium sentiment)
+        else:
+            return choice_values[medium_cutoff:]  # Last third (high sentiment)
+
+    def generate_answer(
+        self, question: Dict[str, Any], sentiment_score: float
+    ) -> Dict[str, Any]:
         question_id = question["questionItem"]["question"]["questionId"]
         question_text = question["title"]
         choices = question["questionItem"]["question"]["choiceQuestion"]["options"]
@@ -82,7 +112,14 @@ class ChoiceAnswerStrategy(AnswerStrategy):
             num_choices = random.randint(1, len(choice_values))  # Select 1 to N answers
             answers = random.sample(choice_values, num_choices)
         else:
-            answers = [random.choice(choice_values)]
+            possible_choices = self._get_choices_based_on_sentiment(
+                choice_values, sentiment_score
+            )
+            # Ensure fallback to all choices if the filtered list is empty
+            if not possible_choices:
+                possible_choices = choice_values
+
+            answers = [random.choice(possible_choices)]
 
         return {
             "entryId": "<TO ADD>",
@@ -95,24 +132,104 @@ class ChoiceAnswerStrategy(AnswerStrategy):
 class ScaleAnswerStrategy(AnswerStrategy):
     """Handles scale-based (linear scale) question answers."""
 
-    def generate_answer(self, question: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_values_based_on_sentiment(
+        self, low: int, high: int, sentiment_score: float, question_text: str
+    ) -> List[int]:
+        """
+        Extracts scale values based on sentiment.
+
+        :param low: Lower bound of the scale.
+        :param high: Upper bound of the scale.
+        :param sentiment_score: Sentiment score between 0.0 and 1.0.
+        :param question_text: The question text (for debugging errors).
+        :return: List of possible values based on sentiment.
+        """
+        # Ensure the scale is valid
+        if low > high:
+            raise ValueError(
+                f"Invalid scale range: {low} to {high} in question '{question_text}'"
+            )
+
+        # Generate the full range of scale values
+        scale_range = list(range(low, high + 1))  # Inclusive range
+        num_values = len(scale_range)
+
+        # Compute segment cutoffs
+        low_cutoff = max(1, num_values // 3)  # Ensure at least one value
+        medium_cutoff = (2 * num_values) // 3
+
+        # Assign scale range based on sentiment
+        if sentiment_score < 0.33:
+            return scale_range[:low_cutoff]  # Lower third (low sentiment)
+        elif sentiment_score < 0.66:
+            return scale_range[
+                low_cutoff:medium_cutoff
+            ]  # Middle third (medium sentiment)
+        else:
+            return scale_range[medium_cutoff:]
+
+    def generate_answer(
+        self, question: Dict[str, Any], sentiment_score: float
+    ) -> Dict[str, Any]:
         question_id = question["questionItem"]["question"]["questionId"]
         question_text = question["title"]
         scale = question["questionItem"]["question"]["scaleQuestion"]
         low, high = scale["low"], scale["high"]
 
+        # Extract possible values based on sentiment
+        possible_values = self._get_values_based_on_sentiment(
+            low, high, sentiment_score, question_text
+        )
+
         return {
             "entryId": "<TO ADD>",
             "questionId": question_id,
             "question_title": question_text,
-            "answers": [str(random.randint(low, high))],
+            "answers": [str(random.choice(possible_values))],
         }
 
 
 class MatrixAnswerStrategy(AnswerStrategy):
     """Handles matrix/grid questions where each row has a single selection."""
 
-    def generate_answer(self, question: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _get_matrix_choice_based_on_sentiment(
+        self, choice_values: List[Any], sentiment_score: float
+    ) -> Any:
+        """
+        Selects a matrix answer choice based on sentiment.
+
+        :param choice_values: Sorted list of available choices.
+        :param sentiment_score: Sentiment score between 0.0 and 1.0.
+        :return: A single choice based on sentiment.
+        """
+        num_choices = len(choice_values)
+        if num_choices == 0:
+            raise ValueError("No available choices for matrix question.")
+
+        # Determine sentiment category cutoffs
+        low_cutoff = max(1, num_choices // 3)
+        medium_cutoff = (2 * num_choices) // 3
+
+        # Assign choices based on sentiment
+        if sentiment_score < 0.33:
+            possible_choices = choice_values[:low_cutoff]  # Low sentiment
+        elif sentiment_score < 0.66:
+            possible_choices = choice_values[
+                low_cutoff:medium_cutoff
+            ]  # Medium sentiment
+        else:
+            possible_choices = choice_values[medium_cutoff:]  # High sentiment
+
+        # Ensure a valid choice is always selected
+        return (
+            random.choice(possible_choices)
+            if possible_choices
+            else random.choice(choice_values)
+        )
+
+    def generate_answer(
+        self, question: Dict[str, Any], sentiment_score: float
+    ) -> List[Dict[str, Any]]:
         responses = []
 
         grid_data = question.get("questionGroupItem", {})
@@ -128,7 +245,9 @@ class MatrixAnswerStrategy(AnswerStrategy):
         # Generate a random answer for each row in the matrix
         for row in questions:
             row_question_id = row["questionId"]
-            chosen_answer = random.choice(choice_values)
+            chosen_answer = self._get_matrix_choice_based_on_sentiment(
+                choice_values, sentiment_score
+            )
 
             responses.append(
                 {
