@@ -1,12 +1,18 @@
 import os
 import string
 import random
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from openai import OpenAI
 from dotenv import load_dotenv
 
-from config import AI_PROMPT, SKIP_WORDS, SKIP_PHRASES, IGNORE_SENTIMENT_QUESTIONS
+from config import (
+    AI_PROMPT,
+    SKIP_WORDS,
+    SKIP_PHRASES,
+    IGNORE_SENTIMENT_QUESTIONS,
+    PREDEFINED_VALUES,
+)
 
 
 # Loads environment variables from a .env file into your shell’s environment.
@@ -71,6 +77,26 @@ class TextAnswerStrategy(AnswerStrategy):
 
         return result
 
+    def _get_predefined_answer(self, question_text: str) -> Optional[str]:
+        """Check if the question matches any predefined keys and return a random value."""
+        for key, values in PREDEFINED_VALUES.items():
+            if key.lower() in question_text.lower():
+                return random.choice(values)
+        return None
+
+    def _generate_openai_answer(self, question_text: str) -> str:
+        """Generates an answer using OpenAI."""
+        client = OpenAI(api_key=self.OPENAI_KEY)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": f"{AI_PROMPT}\n\n{question_text}"}],
+        )
+        # make it more natural, trim and capitalize
+        processed_answer = self._process_generated_answer(
+            response.choices[0].message.content
+        )
+        return processed_answer
+
     def generate_answer(
         self, question: Dict[str, Any], sentiment_score: float
     ) -> Dict[str, Any]:
@@ -81,22 +107,12 @@ class TextAnswerStrategy(AnswerStrategy):
         if any(skip_phrase in question_text.lower() for skip_phrase in SKIP_PHRASES):
             return {}
 
-        # 2) If question mentions 'Country', pick from a small set
-        if "country" in question_text.lower():
-            possible_countries = ("Romania", "Germany", "Austria")
-            generated_answer = random.choice(possible_countries)
-        else:
-            # 3) Otherwise, use OpenAI to generate an answer
-            client = OpenAI(api_key=self.OPENAI_KEY)
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "user", "content": (f"{AI_PROMPT}\n\n{question_text}")}
-                ],
-            )
-            generated_answer = self._process_generated_answer(
-                response.choices[0].message.content
-            )
+        # 2) Try to get a predefined answer
+        generated_answer = self._get_predefined_answer(question_text)
+
+        # 3) Otherwise, use OpenAI to generate an answer
+        if not generated_answer:
+            generated_answer = self._generate_openai_answer(question_text)
 
         return {
             "entryId": "<TO ADD>",

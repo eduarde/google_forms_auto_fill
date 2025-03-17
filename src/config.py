@@ -2,4 +2,12 @@ AI_PROMPT = "You are an employee filling out a research form. Respond with a sho
 
 SKIP_WORDS = {"none of the above", "don’t know", "not sure", "n/a", "prefer not to say"}
 SKIP_PHRASES = {"(optional)", "email"}
-IGNORE_SENTIMENT_QUESTIONS = {"SD", }
+IGNORE_SENTIMENT_QUESTIONS = {
+    "SD",
+}
+
+PREDEFINED_VALUES = {
+    # "question_text": {"answer_choice_1", "answer_choice_n" }
+    # "country": ("Romania", "Germany", "Austria")
+    "country": ("Romania",)
+}
