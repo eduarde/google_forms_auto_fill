@@ -161,12 +161,14 @@ class ChoiceAnswerStrategy(AnswerStrategy):
         )
 
         if question_type == "CHECKBOX":  # Multiple selections allowed
+            random.shuffle(choice_values)  # Shuffle before sampling
             min_choices = min(
                 2, len(choice_values)
             )  # Ensure it does not exceed available choices
             max_choices = max(
                 min_choices, int(len(choice_values) * 0.6)
             )  # Ensure valid range
+
             num_choices = random.randint(
                 min_choices, max_choices
             )  # Guaranteed valid range
