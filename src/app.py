@@ -221,7 +221,11 @@ def submit_form(credentials: Credentials, form_id: str) -> Dict[str, Any]:
     questions = form_data.get("items", [])
 
     # Randomly assign a sentiment score (0.0 - 1.0) with more weight on medium range
-    sentiment_score = _generate_gaussian_sentiment()
+    #sentiment_score = _generate_gaussian_sentiment()
+
+    #  Randomly assign a sentiment score (0.0 - 1.0) with more weight on higher range
+    sentiment_score = _generate_gaussian_sentiment(0.8, 0.1)
+    
 
     logger.info(f"Assigning a sentiment score of {sentiment_score}")
 
@@ -234,7 +238,7 @@ def submit_form(credentials: Credentials, form_id: str) -> Dict[str, Any]:
     # e.g. 'https://docs.google.com/forms/d/e/.../formResponse?usp=pp_url&entry.XXXX=ANSWER...'
     final_url = f"{submit_url}?{payload}"
 
-    logging.info(f"Making GET request to: {final_url}")
+    logging.debug(f"Making GET request to: {final_url}")
     try:
         response = requests.get(final_url)
         # Optional: raise an exception if the status code indicates an error

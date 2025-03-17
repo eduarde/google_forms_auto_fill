@@ -176,13 +176,12 @@ class ChoiceAnswerStrategy(AnswerStrategy):
                 q.lower() in question_text.lower().split()
                 for q in IGNORE_SENTIMENT_QUESTIONS
             ):
+                possible_choices = choice_values
+            else:
                 possible_choices = (
                     self._get_choices_based_on_sentiment(choice_values, sentiment_score)
                     or choice_values
                 )
-            else:
-                possible_choices = choice_values
-
             answers = [random.choice(possible_choices)]
 
         return {

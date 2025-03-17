@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(message)s", level=logging.DEBUG
+        format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
     )
 
     parser = argparse.ArgumentParser(description="Emulate a Google Form submission")
