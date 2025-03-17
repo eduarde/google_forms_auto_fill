@@ -18,16 +18,22 @@ logger = logging.getLogger(__name__)
 FORMS_API_URL = "https://forms.googleapis.com/v1/forms"
 
 
-def _generate_gaussian_sentiment(mean=0.5, std_dev=0.2):
+def _generate_gaussian_sentiment(sentiment_level: str):
     """
-    Generates a sentiment score using a normal (Gaussian) distribution.
+    Generates a sentiment score based on the specified sentiment level.
 
-    :param mean: The center of the distribution (default: 0.5 for medium sentiment).
-    :param std_dev: The standard deviation (default: 0.2 for controlled spread).
+    :param sentiment_level: "low", "medium", or "high"
     :return: A float between 0.0 and 1.0, clamped within valid range.
     """
+    sentiment_map = {
+        "low": (0.2, 0.1),  # Mean 0.2, low variance
+        "medium": (0.5, 0.2),  # Mean 0.5, moderate variance
+        "high": (0.8, 0.1),  # Mean 0.8, low variance
+    }
+
+    mean, std_dev = sentiment_map.get(sentiment_level, (0.5, 0.2))  # Default to medium
     sentiment_score = random.gauss(mean, std_dev)
-    return max(0.0, min(1.0, sentiment_score))  # Ensure it's within [0,1]
+    return max(0.0, min(1.0, sentiment_score))  # Clamp between [0,1]
 
 
 def gather_entry_data_init(data: dict) -> dict:
@@ -194,7 +200,9 @@ def fetch_form_data(credentials: Credentials, form_id: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 
-def submit_form(credentials: Credentials, form_id: str) -> Dict[str, Any]:
+def submit_form(
+    credentials: Credentials, form_id: str, sentiment_level: str
+) -> Dict[str, Any]:
     """
     Fetches Google Form questions, generates answers, and submits the form.
 
@@ -220,14 +228,11 @@ def submit_form(credentials: Credentials, form_id: str) -> Dict[str, Any]:
     # Extract the questions array from the JSON
     questions = form_data.get("items", [])
 
-    # Randomly assign a sentiment score (0.0 - 1.0) with more weight on medium range
-    #sentiment_score = _generate_gaussian_sentiment()
-
     #  Randomly assign a sentiment score (0.0 - 1.0) with more weight on higher range
-    sentiment_score = _generate_gaussian_sentiment(0.8, 0.1)
-    
-
-    logger.info(f"Assigning a sentiment score of {sentiment_score}")
+    sentiment_score = _generate_gaussian_sentiment(sentiment_level)
+    logger.info(
+        f"Assigning a sentiment {sentiment_level} with score: {sentiment_score}"
+    )
 
     # Build your query-string payload (e.g., 'usp=pp_url&entry.XXXX=answer...')
     payload = generate_submission_payload(form_id, questions, sentiment_score)

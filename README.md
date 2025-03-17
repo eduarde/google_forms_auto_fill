@@ -169,7 +169,12 @@ MATRIX (1 answer per each question): entry.973603086=Slightly&entry.2145368981=Q
    ```
 
    ```sh
-   python src/submit_form.py --form-id xxxxxxxxx --repeat 10
+   python src/submit_form.py --form-id xxxxxxxxx --repeat 10 --sentiment high
+   ```
+
+   ```
+   Repeat: Repeat the submission (default: 1)
+   Sentiment: Set the sentiment level (default: medium): low, medium, high
    ```
 
 This will automatically fill the forms based on entry_data_<FORM_ID>.json with random responses.
